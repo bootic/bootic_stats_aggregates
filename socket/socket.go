@@ -3,7 +3,7 @@ package socket
 import(
   "regexp"
   "fmt"
-  "bootic_stats_observer/data"
+  "bootic_stats_aggregates/data"
   "github.com/bitly/go-simplejson"
   zmq "github.com/alecthomas/gozmq"
 )

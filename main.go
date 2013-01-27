@@ -3,8 +3,8 @@ package main
 import(
   "log"
   "fmt"
-  "bootic_stats_observer/socket"
-  "bootic_stats_observer/redis_stats"
+  "bootic_stats_aggregates/socket"
+  "bootic_stats_aggregates/redis_stats"
   "net/http"
   "github.com/gorilla/mux"
   "github.com/vmihailenco/redis"
@@ -12,6 +12,19 @@ import(
   "strconv"
   "strings"
 )
+
+func linksLookup(client *redis.Client, req *http.Request, redisPath string) ([]string) {
+  f := client.Keys(redisPath)
+  
+  urls := []string{}
+  
+  for _, v := range(f.Val()) {
+    url := fmt.Sprintf("http://%s/%s", req.Host, strings.Replace(v, ":", "/", -1))
+    urls = append(urls, url)
+  }
+  
+  return urls
+}
 
 func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
@@ -21,7 +34,7 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
     res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
     
     vars := mux.Vars(req)
-    splitPath := []string{vars["base"]}
+    splitPath := []string{vars["chartType"]}
     if vars["key"] != "" {
       splitPath = append(splitPath, vars["key"])
     }
@@ -32,13 +45,8 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
     splitPath = append(splitPath, "*")
     
     redisPath := strings.Join(splitPath, ":")
-    f := client.Keys(redisPath)
     
-    urls := []string{}
-    for _, v := range(f.Val()) {
-      url := fmt.Sprintf("http://%s/%s", req.Host, strings.Replace(v, ":", "/", -1))
-      urls = append(urls, url)
-    }
+    urls := linksLookup(client, req, redisPath)
     
     json, err := json.Marshal(urls)
     if err != nil {
@@ -50,6 +58,17 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
   }
 }
 
+type Payload struct {
+  Type string             `json:"type"`
+  Account string          `json:"account"`
+  Event string            `json:"event"`
+  Year string             `json:"year"`
+  Month string            `json:"month"`
+  Day string              `json:"day"`
+  Links []string          `json:"links"`
+  Data map[string]int64   `json:"data"`
+}
+
 func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
     res.Header().Add("Content-Type", "application/json")
@@ -58,16 +77,27 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
     res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
     
     vars := mux.Vars(req)
-    splitPath := []string{vars["base"], vars["key"]}
+    splitPath := []string{vars["chartType"], vars["key"]}
+    
+    payload := &Payload{
+      Type: vars["chartType"],
+      Account: vars["key"],
+      Event: vars["evt"],
+      Year: vars["year"],
+      Month: vars["month"],
+      Day: vars["day"],
+    }
     
     if vars["evt"] != "" {
       splitPath = append(splitPath, vars["evt"])
     }
     if vars["year"] != "" {
       splitPath = append(splitPath, vars["year"])
+      // load links for year
     }
     if vars["month"] != "" {
       splitPath = append(splitPath, vars["month"])
+      // load links for month
     }
     if vars["day"] != "" {
       splitPath = append(splitPath, vars["day"])
@@ -95,8 +125,12 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
       counts[v] = vals[i]
     }
     
+    payload.Data = counts
     
-    json, err := json.Marshal(counts)
+    keysPattern := fmt.Sprintf("%s:*", redisPath)
+    payload.Links = linksLookup(client, req, keysPattern)
+    
+    json, err := json.Marshal(payload)
     if err != nil {
       panic(err)
     }
@@ -134,13 +168,13 @@ func main() {
   keyHandler := KeyHandler(tracker.Conn)
   allKeysHandler := AllKeysHandler(tracker.Conn)
   
-  router.HandleFunc("/{base}", allKeysHandler).Methods("GET")
-  router.HandleFunc("/{base}/{key}", allKeysHandler).Methods("GET")
-  router.HandleFunc("/{base}/{key}/{evt}", allKeysHandler).Methods("GET")
+  router.HandleFunc("/{chartType}", allKeysHandler).Methods("GET")
+  router.HandleFunc("/{chartType}/{key}", allKeysHandler).Methods("GET")
+  router.HandleFunc("/{chartType}/{key}/{evt}", allKeysHandler).Methods("GET")
   
-  router.HandleFunc("/{base}/{key}/{evt}/{year}", keyHandler).Methods("GET")
-  router.HandleFunc("/{base}/{key}/{evt}/{year}/{month}", keyHandler).Methods("GET")
-  router.HandleFunc("/{base}/{key}/{evt}/{year}/{month}/{day}", keyHandler).Methods("GET")
+  router.HandleFunc("/{chartType}/{key}/{evt}/{year}", keyHandler).Methods("GET")
+  router.HandleFunc("/{chartType}/{key}/{evt}/{year}/{month}", keyHandler).Methods("GET")
+  router.HandleFunc("/{chartType}/{key}/{evt}/{year}/{month}/{day}", keyHandler).Methods("GET")
   
   http.Handle("/", router)
       
