@@ -68,6 +68,29 @@ func redisIntHash(client *redis.Client, redisPath string) (map[string]int64) {
   return counts
 }
 
+func RootHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
+  return func(res http.ResponseWriter, req *http.Request) {
+    addHeaders(res)
+    
+    links := []string{
+      fmt.Sprintf("http://%s/%s", req.Host, "track"),
+      fmt.Sprintf("http://%s/%s", req.Host, "funnels"),
+    }
+    
+    payload := &Payload{
+      Links: links,
+    }
+    
+    json, err := json.Marshal(payload)
+    
+    if err != nil {
+      panic(err)
+    }
+
+    res.Write(json)
+  }
+}
+
 func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
     addHeaders(res)
@@ -178,9 +201,12 @@ func main() {
   http_host := "localhost:8001"
   
   router := mux.NewRouter()
+  
+  rootHandler := RootHandler(tracker.Conn)
   keyHandler := KeyHandler(tracker.Conn)
   allKeysHandler := AllKeysHandler(tracker.Conn)
   
+  router.HandleFunc("/", rootHandler).Methods("GET")
   router.HandleFunc("/{chartType}", allKeysHandler).Methods("GET")
   router.HandleFunc("/{chartType}/{key}", allKeysHandler).Methods("GET")
   router.HandleFunc("/{chartType}/{key}/{evt}", allKeysHandler).Methods("GET")
