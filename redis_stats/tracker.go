@@ -15,7 +15,7 @@ type Tracker struct {
 }
 
 func (self *Tracker) TrackTime(accountStr, evtType string) {
-  fmt.Println("Track", accountStr)
+
   go func(key, evtType string) {
     now := time.Now()
 
@@ -43,7 +43,7 @@ func (self *Tracker) TrackTime(accountStr, evtType string) {
 }
 
 func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string) {
-  fmt.Println("Funnel", accountStr)
+
   go func(key, evtType, statusStr string) {
     now := time.Now()
 
