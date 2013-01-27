@@ -2,7 +2,6 @@ package socket
 
 import(
   "regexp"
-  "fmt"
   "bootic_stats_aggregates/data"
   "github.com/bitly/go-simplejson"
   zmq "github.com/alecthomas/gozmq"
@@ -55,7 +54,6 @@ func NewZMQSubscriber(host, topic string) (daemon *Daemon, err error) {
   socket.SetSockOptString(zmq.SUBSCRIBE, topic)
 
   socket.Connect(host)
-  fmt.Println("ZMQ client connected to", host)
   
   daemon = &Daemon{
     socket: socket,
