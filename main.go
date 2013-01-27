@@ -7,19 +7,28 @@ import(
   "bootic_stats_aggregates/handlers"
   "net/http"
   "github.com/gorilla/mux"
+  "flag"
 )
 
 func main() {
+  var(
+    topic string
+    zmqAddress string
+    redisAddress string
+    httpHost string
+  )
   
-  topic         := "" // event type. ie "order", "pageview"
-  zmqAddress    := "tcp://127.0.0.1:6000"
-  redisAddress  := "localhost:6379"
-  httpHost      := "localhost:8001"
+  flag.StringVar(&topic, "topic", "", "ZMQ topic to subscribe to") // event type. ie "order", "pageview"
+  flag.StringVar(&zmqAddress, "zmqsocket", "tcp://127.0.0.1:6000", "ZMQ socket address to bind to")
+  flag.StringVar(&redisAddress, "redishost", "localhost:6379", "Redis host:port")
+  flag.StringVar(&httpHost, "httphost", "localhost:8001", "HTTP host:port for JSON API")
+  
+  flag.Parse()
   
   // Setup ZMQ subscriber +++++++++++++++++++++++++++++++
   daemon, _  := socket.NewZMQSubscriber(zmqAddress, topic)
   
-  log.Println("ZMQ socket started on", zmqAddress)
+  log.Println("ZMQ socket started on", zmqAddress, "topic '", topic, "'")
   
   // Setup Rediss trackr ++++++++++++++++++++++++++++++++
   tracker, err := redis_stats.NewTracker(redisAddress)
