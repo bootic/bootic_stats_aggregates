@@ -80,7 +80,7 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
     keys   := []string{}
     vals   := []int64{}
     
-    hash  := make(map[string]int64)
+    counts  := make(map[string]int64)
     
     for i, v := range(f.Val()) {
       if i % 2 == 0 {
@@ -92,11 +92,11 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
     }
     
     for i, v := range(keys) {
-      hash[v] = vals[i]
+      counts[v] = vals[i]
     }
     
     
-    json, err := json.Marshal(hash)
+    json, err := json.Marshal(counts)
     if err != nil {
       panic(err)
     }
