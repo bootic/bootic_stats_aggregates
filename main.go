@@ -13,7 +13,25 @@ import(
   "strings"
 )
 
-func linksLookup(client *redis.Client, req *http.Request, redisPath string) ([]string) {
+type Payload struct {
+  Type string             `json:"type"`
+  Account string          `json:"account"`
+  Event string            `json:"event"`
+  Year string             `json:"year"`
+  Month string            `json:"month"`
+  Day string              `json:"day"`
+  Links []string          `json:"links"`
+  Data map[string]int64   `json:"data"`
+}
+
+func addHeaders (res http.ResponseWriter) {
+  res.Header().Add("Content-Type", "application/json")
+  res.Header().Add("Cache-Control", "no-store, no-cache, must-revalidate, private, proxy-revalidate")
+  res.Header().Add("Pragma", "no-cache")
+  res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
+}
+
+func redisLinksLookup(client *redis.Client, req *http.Request, redisPath string) ([]string) {
   f := client.Keys(redisPath)
   
   urls := []string{}
@@ -26,14 +44,42 @@ func linksLookup(client *redis.Client, req *http.Request, redisPath string) ([]s
   return urls
 }
 
+func redisIntHash(client *redis.Client, redisPath string) (map[string]int64) {
+  f := client.HGetAll(redisPath)
+  
+  keys   := []string{}
+  vals   := []int64{}
+  
+  counts  := make(map[string]int64)
+  
+  for i, v := range(f.Val()) {
+    if i % 2 == 0 {
+      keys = append(keys, v)
+    } else {
+      i, _ := strconv.ParseInt(v, 10, 0)
+      vals = append(vals, i)
+    }
+  }
+  
+  for i, v := range(keys) {
+    counts[v] = vals[i]
+  }
+  
+  return counts
+}
+
 func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
-    res.Header().Add("Content-Type", "application/json")
-    res.Header().Add("Cache-Control", "no-store, no-cache, must-revalidate, private, proxy-revalidate")
-    res.Header().Add("Pragma", "no-cache")
-    res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
+    addHeaders(res)
     
     vars := mux.Vars(req)
+    
+    payload := &Payload{
+      Type: vars["chartType"],
+      Account: vars["key"],
+      Event: vars["evt"],
+    }
+    
     splitPath := []string{vars["chartType"]}
     if vars["key"] != "" {
       splitPath = append(splitPath, vars["key"])
@@ -46,9 +92,10 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
     
     redisPath := strings.Join(splitPath, ":")
     
-    urls := linksLookup(client, req, redisPath)
+    payload.Links = redisLinksLookup(client, req, redisPath)
     
-    json, err := json.Marshal(urls)
+    json, err := json.Marshal(payload)
+    
     if err != nil {
       panic(err)
     }
@@ -58,23 +105,9 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
   }
 }
 
-type Payload struct {
-  Type string             `json:"type"`
-  Account string          `json:"account"`
-  Event string            `json:"event"`
-  Year string             `json:"year"`
-  Month string            `json:"month"`
-  Day string              `json:"day"`
-  Links []string          `json:"links"`
-  Data map[string]int64   `json:"data"`
-}
-
 func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
-    res.Header().Add("Content-Type", "application/json")
-    res.Header().Add("Cache-Control", "no-store, no-cache, must-revalidate, private, proxy-revalidate")
-    res.Header().Add("Pragma", "no-cache")
-    res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
+    addHeaders(res)
     
     vars := mux.Vars(req)
     splitPath := []string{vars["chartType"], vars["key"]}
@@ -104,31 +137,11 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
     }
     
     redisPath := strings.Join(splitPath, ":")
-
-    f := client.HGetAll(redisPath)
     
-    keys   := []string{}
-    vals   := []int64{}
-    
-    counts  := make(map[string]int64)
-    
-    for i, v := range(f.Val()) {
-      if i % 2 == 0 {
-        keys = append(keys, v)
-      } else {
-        i, _ := strconv.ParseInt(v, 10, 0)
-        vals = append(vals, i)
-      }
-    }
-    
-    for i, v := range(keys) {
-      counts[v] = vals[i]
-    }
-    
-    payload.Data = counts
+    payload.Data = redisIntHash(client, redisPath)
     
     keysPattern := fmt.Sprintf("%s:*", redisPath)
-    payload.Links = linksLookup(client, req, keysPattern)
+    payload.Links = redisLinksLookup(client, req, keysPattern)
     
     json, err := json.Marshal(payload)
     if err != nil {
