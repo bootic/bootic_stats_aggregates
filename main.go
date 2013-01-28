@@ -16,12 +16,14 @@ func main() {
     zmqAddress string
     redisAddress string
     httpHost string
+    pathprefix string
   )
   
   flag.StringVar(&topic, "topic", "", "ZMQ topic to subscribe to") // event type. ie "order", "pageview"
   flag.StringVar(&zmqAddress, "zmqsocket", "tcp://127.0.0.1:6000", "ZMQ socket address to bind to")
   flag.StringVar(&redisAddress, "redishost", "localhost:6379", "Redis host:port")
   flag.StringVar(&httpHost, "httphost", "localhost:8001", "HTTP host:port for JSON API")
+  flag.StringVar(&pathprefix, "pathprefix", "/stats", "Path prefix for HTTP API")
   
   flag.Parse()
   
@@ -48,11 +50,12 @@ func main() {
   // Declare HTTP API routes ++++++++++++++++++++++++++++
   router := mux.NewRouter()
   
-  rootHandler := handlers.RootHandler(tracker.Conn)
-  keyHandler := handlers.KeyHandler(tracker.Conn)
-  allKeysHandler := handlers.AllKeysHandler(tracker.Conn)
+  rootHandler := handlers.RootHandler(tracker.Conn, pathprefix)
+  keyHandler := handlers.KeyHandler(tracker.Conn, pathprefix)
+  allKeysHandler := handlers.AllKeysHandler(tracker.Conn, pathprefix)
   
   router.HandleFunc("/", rootHandler).Methods("GET")
+  router.HandleFunc("/favicon.ico", handlers.Favicon).Methods("GET")
   router.HandleFunc("/{chartType}", allKeysHandler).Methods("GET")
   router.HandleFunc("/{chartType}/{key}", allKeysHandler).Methods("GET")
   router.HandleFunc("/{chartType}/{key}/{evt}", allKeysHandler).Methods("GET")
@@ -61,7 +64,7 @@ func main() {
   router.HandleFunc("/{chartType}/{key}/{evt}/{year}/{month}", keyHandler).Methods("GET")
   router.HandleFunc("/{chartType}/{key}/{evt}/{year}/{month}/{day}", keyHandler).Methods("GET")
   
-  http.Handle("/", router)
+  http.Handle("/", http.StripPrefix(pathprefix, router))
   
   // Start HTTP server
   log.Println("Starting HTTP server on", httpHost)

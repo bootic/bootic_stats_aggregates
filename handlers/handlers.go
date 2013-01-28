@@ -28,13 +28,12 @@ func addHeaders (res http.ResponseWriter) {
   res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
 }
 
-func redisLinksLookup(client *redis.Client, req *http.Request, redisPath string) ([]string) {
+func redisLinksLookup(client *redis.Client, req *http.Request, redisPath, prefix string) ([]string) {
   f := client.Keys(redisPath)
-  
   urls := []string{}
   
   for _, v := range(f.Val()) {
-    url := fmt.Sprintf("http://%s/%s", req.Host, strings.Replace(v, ":", "/", -1))
+    url := fmt.Sprintf("http://%s%s/%s", req.Host, prefix, strings.Replace(v, ":", "/", -1))
     urls = append(urls, url)
   }
   
@@ -65,13 +64,18 @@ func redisIntHash(client *redis.Client, redisPath string) (map[string]int64) {
   return counts
 }
 
-func RootHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
+func Favicon(res http.ResponseWriter, req *http.Request) {
+  res.Header().Add("Content-Type", "text/plain")
+  res.Write([]byte(""))
+}
+
+func RootHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
     addHeaders(res)
     
     links := []string{
-      fmt.Sprintf("http://%s/%s", req.Host, "track"),
-      fmt.Sprintf("http://%s/%s", req.Host, "funnels"),
+      fmt.Sprintf("http://%s%s/%s", req.Host, prefix, "track"),
+      fmt.Sprintf("http://%s%s/%s", req.Host, prefix, "funnels"),
     }
     
     payload := &Payload{
@@ -88,7 +92,7 @@ func RootHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.R
   }
 }
 
-func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
+func AllKeysHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
     addHeaders(res)
     
@@ -112,7 +116,7 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
     
     redisPath := strings.Join(splitPath, ":")
     
-    payload.Links = redisLinksLookup(client, req, redisPath)
+    payload.Links = redisLinksLookup(client, req, redisPath, prefix)
     
     json, err := json.Marshal(payload)
     
@@ -125,7 +129,7 @@ func AllKeysHandler(client *redis.Client) (handle func(http.ResponseWriter, *htt
   }
 }
 
-func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Request)) {
+func KeyHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
     addHeaders(res)
     
@@ -161,7 +165,7 @@ func KeyHandler(client *redis.Client) (handle func(http.ResponseWriter, *http.Re
     payload.Data = redisIntHash(client, redisPath)
     
     keysPattern := fmt.Sprintf("%s:*", redisPath)
-    payload.Links = redisLinksLookup(client, req, keysPattern)
+    payload.Links = redisLinksLookup(client, req, keysPattern, prefix)
     
     json, err := json.Marshal(payload)
     if err != nil {
