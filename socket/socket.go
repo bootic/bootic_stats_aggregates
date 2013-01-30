@@ -2,8 +2,7 @@ package socket
 
 import(
   "regexp"
-  "bootic_stats_aggregates/data"
-  "github.com/bitly/go-simplejson"
+  data "github.com/bootic/bootic_go_data"
   zmq "github.com/alecthomas/gozmq"
 )
 
@@ -20,7 +19,7 @@ func (d *Daemon) listen() {
     r := reg.FindStringSubmatch(string(msg))
     
     payload := r[1]
-    event, jsonErr := simplejson.NewJson([]byte(payload))
+    event, jsonErr := data.Decode([]byte(payload))
     
     if jsonErr != nil {
       panic(jsonErr)
@@ -34,7 +33,7 @@ func (self *Daemon) SubscribeToType(observer data.EventsChannel, typeStr string)
   self.observers[typeStr] = append(self.observers[typeStr], observer)
 }
 
-func (self *Daemon) Dispatch(event *simplejson.Json) {
+func (self *Daemon) Dispatch(event *data.Event) {
   // Dispatch to global observers
   for _, observer := range self.observers["all"] {
     observer <- event

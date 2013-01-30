@@ -1,7 +1,7 @@
 package redis_stats
 
 import (
-  "bootic_stats_aggregates/data"
+  data "github.com/bootic/bootic_go_data"
   "github.com/vmihailenco/redis"
   "time"
   "fmt"
