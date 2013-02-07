@@ -1,7 +1,7 @@
 package redis_stats
 
 import (
-  "bootic_stats_aggregates/data"
+  data "github.com/bootic/bootic_go_data"
   "github.com/vmihailenco/redis"
   "time"
   "fmt"
@@ -14,10 +14,9 @@ type Tracker struct {
   Funnels data.EventsChannel
 }
 
-func (self *Tracker) TrackTime(accountStr, evtType string) {
+func (self *Tracker) TrackTime(accountStr, evtType string, now time.Time) {
 
-  go func(key, evtType string) {
-    now := time.Now()
+  go func(key, evtType string, now time.Time) {
 
     yearAsString  := strconv.Itoa(now.Year())
     monthAsString := strconv.Itoa(int(now.Month()))
@@ -39,13 +38,12 @@ func (self *Tracker) TrackTime(accountStr, evtType string) {
     // Expire day entry after a month
     self.Conn.Expire(dayKey, 2592000)
 
-  }(accountStr, evtType)
+  }(accountStr, evtType, now)
 }
 
-func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string) {
+func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string, now time.Time) {
 
-  go func(key, evtType, statusStr string) {
-    now := time.Now()
+  go func(key, evtType, statusStr string, now time.Time) {
 
     yearAsString  := strconv.Itoa(now.Year())
     monthAsString := strconv.Itoa(int(now.Month()))
@@ -58,7 +56,27 @@ func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string) {
     monthKey      := fmt.Sprintf("funnels:%s:%s:%s:%s", key, evtType, yearAsString, monthAsString)
     self.Conn.HIncrBy(monthKey, statusStr, 1)
 
-  }(accountStr, evtType, statusStr)
+  }(accountStr, evtType, statusStr, now)
+}
+
+func getLocalTime(event *data.Event) time.Time {
+  tzstr, e1 := event.Get("data").Get("tz").String()
+  now := time.Now()
+  if e1 != nil {
+    return now
+  }
+  if tzstr == "" {
+    return now
+  }
+  tzhours := fmt.Sprintf("%sh", tzstr)
+  tzdur, e2 := time.ParseDuration(tzhours)
+  if e2 != nil {
+    return time.Now()
+  }
+  
+  then := now.Add(tzdur)
+  
+  return then
 }
 
 func (self *Tracker) listenForPageviews() {
@@ -66,8 +84,11 @@ func (self *Tracker) listenForPageviews() {
     event := <- self.Notifier
     evtType, _     := event.Get("type").String()
     evtAccount, _  := event.Get("data").Get("account").String()
-    self.TrackTime(evtAccount, evtType)
-    self.TrackTime("all", evtType)
+    
+    then := getLocalTime(event)
+    
+    self.TrackTime(evtAccount, evtType, then)
+    self.TrackTime("all", evtType, then)
   }
 }
 
@@ -77,8 +98,11 @@ func (self *Tracker) listenForFunnels() {
     evtType, _     := event.Get("type").String()
     evtAccount, _  := event.Get("data").Get("account").String()
     evtStatus, _  := event.Get("data").Get("status").String()
-    self.TrackFunnel(evtAccount, evtType, evtStatus)
-    self.TrackFunnel("all", evtType, evtStatus)
+    
+    then := getLocalTime(event)
+    
+    self.TrackFunnel(evtAccount, evtType, evtStatus, then)
+    self.TrackFunnel("all", evtType, evtStatus, then)
   }
 }
 
