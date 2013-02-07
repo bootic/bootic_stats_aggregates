@@ -6,6 +6,7 @@ import (
   "encoding/json"
   "strconv"
   "strings"
+  "net/url"
   "github.com/gorilla/mux"
   "github.com/vmihailenco/redis"
 )
@@ -21,11 +22,29 @@ type Payload struct {
   Data map[string]int64   `json:"data"`
 }
 
-func addHeaders (res http.ResponseWriter) {
-  res.Header().Add("Content-Type", "application/json")
+func respond(req *http.Request, res http.ResponseWriter, payload *Payload) {
   res.Header().Add("Cache-Control", "no-store, no-cache, must-revalidate, private, proxy-revalidate")
   res.Header().Add("Pragma", "no-cache")
   res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
+  
+  query, _ := url.ParseQuery(req.URL.RawQuery)
+  jsonpCallback := query["callback"]
+
+  json, err := json.Marshal(payload)
+  
+  if err != nil {
+    panic(err)
+  }
+  
+  if len(jsonpCallback) > 0 {
+    res.Header().Add("Content-Type", "text/javascript")
+    jsonAsString := string(json)
+    wrapped := fmt.Sprintf("%s(%s)", jsonpCallback[0], jsonAsString)
+    res.Write([]byte(wrapped))
+  } else {
+    res.Header().Add("Content-Type", "application/json")
+    res.Write(json)
+  }
 }
 
 func redisLinksLookup(client *redis.Client, req *http.Request, redisPath, prefix string) ([]string) {
@@ -71,7 +90,6 @@ func Favicon(res http.ResponseWriter, req *http.Request) {
 
 func RootHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
-    addHeaders(res)
     
     links := []string{
       fmt.Sprintf("http://%s%s/%s", req.Host, prefix, "track"),
@@ -82,19 +100,12 @@ func RootHandler(client *redis.Client, prefix string) (handle func(http.Response
       Links: links,
     }
     
-    json, err := json.Marshal(payload)
-    
-    if err != nil {
-      panic(err)
-    }
-
-    res.Write(json)
+    respond(req, res, payload)
   }
 }
 
 func AllKeysHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
-    addHeaders(res)
     
     vars := mux.Vars(req)
     
@@ -118,20 +129,13 @@ func AllKeysHandler(client *redis.Client, prefix string) (handle func(http.Respo
     
     payload.Links = redisLinksLookup(client, req, redisPath, prefix)
     
-    json, err := json.Marshal(payload)
-    
-    if err != nil {
-      panic(err)
-    }
-
-    res.Write(json)
+    respond(req, res, payload)
     
   }
 }
 
 func KeyHandler(client *redis.Client, prefix string) (handle func(http.ResponseWriter, *http.Request)) {
   return func(res http.ResponseWriter, req *http.Request) {
-    addHeaders(res)
     
     vars := mux.Vars(req)
     splitPath := []string{vars["chartType"], vars["key"]}
@@ -167,12 +171,7 @@ func KeyHandler(client *redis.Client, prefix string) (handle func(http.ResponseW
     keysPattern := fmt.Sprintf("%s:*", redisPath)
     payload.Links = redisLinksLookup(client, req, keysPattern, prefix)
     
-    json, err := json.Marshal(payload)
-    if err != nil {
-      panic(err)
-    }
-    
-    res.Write(json)
+    respond(req, res, payload)
   }
   
 }
