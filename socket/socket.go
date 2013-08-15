@@ -2,6 +2,7 @@ package socket
 
 import(
   "regexp"
+  "log"
   data "github.com/bootic/bootic_go_data"
   zmq "github.com/alecthomas/gozmq"
 )
@@ -20,12 +21,11 @@ func (d *Daemon) listen() {
     
     payload := r[1]
     event, jsonErr := data.Decode([]byte(payload))
-    
     if jsonErr != nil {
-      panic(jsonErr)
+      log.Println("Invalid data", jsonErr)
+    } else {
+     d.Dispatch(event) 
     }
-    
-    d.Dispatch(event)
   }
 }
 

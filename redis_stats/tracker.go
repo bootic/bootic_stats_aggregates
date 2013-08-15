@@ -5,6 +5,7 @@ import (
   "github.com/vmihailenco/redis"
   "time"
   "fmt"
+  "log"
   "strconv"
 )
 
@@ -17,7 +18,13 @@ type Tracker struct {
 func (self *Tracker) TrackTime(accountStr, evtType string, now time.Time) {
 
   go func(key, evtType string, now time.Time) {
-
+    
+    defer func() {
+      if err := recover(); err != nil {
+        log.Println("Goroutine failed:", err)
+      }
+    }()
+    
     yearAsString  := strconv.Itoa(now.Year())
     monthAsString := strconv.Itoa(int(now.Month()))
     dayAsString   := strconv.Itoa(now.Day())
@@ -44,7 +51,13 @@ func (self *Tracker) TrackTime(accountStr, evtType string, now time.Time) {
 func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string, now time.Time) {
 
   go func(key, evtType, statusStr string, now time.Time) {
-
+    
+    defer func() {
+      if err := recover(); err != nil {
+        log.Println("Goroutine failed:", err)
+      }
+    }()
+    
     yearAsString  := strconv.Itoa(now.Year())
     monthAsString := strconv.Itoa(int(now.Month()))
 

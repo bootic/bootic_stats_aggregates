@@ -3,6 +3,7 @@ package handlers
 import (
   "net/http"
   "fmt"
+  "log"
   "encoding/json"
   "strconv"
   "strings"
@@ -23,6 +24,12 @@ type Payload struct {
 }
 
 func respond(req *http.Request, res http.ResponseWriter, payload *Payload) {
+  defer func() {
+    if err := recover(); err != nil {
+      log.Println("Goroutine failed:", err)
+    }
+  }()
+  
   res.Header().Add("Cache-Control", "no-store, no-cache, must-revalidate, private, proxy-revalidate")
   res.Header().Add("Pragma", "no-cache")
   res.Header().Add("Expires", "Fri, 24 Nov 2000 01:00:00 GMT")
