@@ -19,12 +19,16 @@ func (d *Daemon) listen() {
     reg, _ := regexp.Compile(`^(?:\w+)?\s+(.+)`)
     r := reg.FindStringSubmatch(string(msg))
     
-    payload := r[1]
-    event, jsonErr := data.Decode([]byte(payload))
-    if jsonErr != nil {
-      log.Println("Invalid data", jsonErr)
+    if len(r) > 1 {
+      payload := r[1]
+      event, jsonErr := data.Decode([]byte(payload))
+      if jsonErr != nil {
+        log.Println("Invalid data", jsonErr)
+      } else {
+       d.Dispatch(event) 
+      }
     } else {
-     d.Dispatch(event) 
+      log.Println("Irregular expression", string(msg))
     }
   }
 }
