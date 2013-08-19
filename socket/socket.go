@@ -1,4 +1,4 @@
-package socket
+package zmq
 
 import(
   "regexp"
@@ -16,7 +16,8 @@ func (d *Daemon) listen() {
   for {
     msg, _ := d.socket.Recv(0)
     
-    reg, _ := regexp.Compile(`^(?:\w+)?\s+(.+)`)
+    reg, _ := regexp.Compile(`^([^ ]+)?\s+(.+)`)
+    
     r := reg.FindStringSubmatch(string(msg))
     
     if len(r) > 1 {

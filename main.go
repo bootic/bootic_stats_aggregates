@@ -28,7 +28,7 @@ func main() {
   flag.Parse()
   
   // Setup ZMQ subscriber +++++++++++++++++++++++++++++++
-  daemon, _  := socket.NewZMQSubscriber(zmqAddress, topic)
+  daemon, _  := zmq.NewZMQSubscriber(zmqAddress, topic)
   
   log.Println("ZMQ socket started on", zmqAddress, "topic '", topic, "'")
   
