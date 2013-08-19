@@ -2,7 +2,7 @@ package main
 
 import(
   "log"
-  "bootic_stats_aggregates/socket"
+  "github.com/bootic/bootic_zmq"
   "bootic_stats_aggregates/redis_stats"
   "bootic_stats_aggregates/handlers"
   "net/http"
@@ -28,7 +28,7 @@ func main() {
   flag.Parse()
   
   // Setup ZMQ subscriber +++++++++++++++++++++++++++++++
-  daemon, _  := zmq.NewZMQSubscriber(zmqAddress, topic)
+  daemon, _  := booticzmq.NewZMQSubscriber(zmqAddress, topic)
   
   log.Println("ZMQ socket started on", zmqAddress, "topic '", topic, "'")
   
