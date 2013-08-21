@@ -97,11 +97,17 @@ func (self *Tracker) listenForPageviews() {
     event := <- self.Notifier
     evtType, _     := event.Get("type").String()
     evtAccount, _  := event.Get("data").Get("account").String()
-    
     then := getLocalTime(event)
     
     self.TrackTime(evtAccount, evtType, then)
     self.TrackTime("all", evtType, then)
+    
+    unique, _ := event.Get("data").Get("unq").String()
+    
+    if unique == "1" {
+      self.TrackTime(evtAccount, "unique", then)
+      self.TrackTime("all", "unique", then)
+    }
   }
 }
 
