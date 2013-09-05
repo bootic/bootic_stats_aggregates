@@ -43,7 +43,7 @@ func (self *Tracker) TrackTime(accountStr, evtType string, now time.Time) {
     self.Conn.HIncrBy(dayKey, hourAsString, 1)
 
     // Expire day entry after a month
-    self.Conn.Expire(dayKey, 2592000)
+    // self.Conn.Expire(dayKey, 2592000)
 
   }(accountStr, evtType, now)
 }
