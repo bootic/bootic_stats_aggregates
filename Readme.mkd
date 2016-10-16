@@ -49,7 +49,7 @@ The JSON response for each period icludes counters for the period's segments. So
   "month": 2,
   "day": null,
   "hour": null,
-  "data": [
+  "data": {
     1: 1489,
     2: 50148,
     3: 1250,
@@ -81,7 +81,7 @@ The JSON response for each period icludes counters for the period's segments. So
     29: 1,
     30: 5,
     31: 7
-  ]
+  
 }
 ```
 
