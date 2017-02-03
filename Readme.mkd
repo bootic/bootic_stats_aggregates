@@ -40,7 +40,7 @@ This script also exposes a JSON HTTP API to query pageviews per period and accou
 * `/api/stats/track/acme/pageview/2013/02/02` # 2 February 2013 pageviews for "acme" account
 * `/api/stats/track/acme/pageview/2013/02/16` # 2 February 2013, 16hrs. pageviews for "acme" account
 
-The JSON response for each period icludes counters for the period's segments. So for example a month's segments are the month's days:
+The JSON response for each period includes counters for the period's segments. So for example a month's segments are the month's days:
 
 ```json
 {
