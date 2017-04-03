@@ -73,23 +73,8 @@ func (self *Tracker) TrackFunnel(accountStr, evtType, statusStr string, now time
 }
 
 func getLocalTime(event *data.Event) time.Time {
-  tzstr, e1 := event.Get("data").Get("tz").String()
-  now := time.Now()
-  if e1 != nil {
-    return now
-  }
-  if tzstr == "" {
-    return now
-  }
-  tzhours := fmt.Sprintf("%sh", tzstr)
-  tzdur, e2 := time.ParseDuration(tzhours)
-  if e2 != nil {
-    return time.Now()
-  }
-
-  then := now.Add(tzdur)
-
-  return then
+	// ignore client time for now
+	return time.Now().UTC()
 }
 
 func (self *Tracker) listenForPageviews() {
