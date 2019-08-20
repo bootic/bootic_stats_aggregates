@@ -1,4 +1,4 @@
-## Bootic stats aggregator / API
+## Bootic pageviews aggregator / API
 
 * Subscribe to `pageview` and `order` events on Bootic's ZMQ events bus.
 * Aggregate said events into incremental Redis hashes for different periods (hour, day, month, year)
